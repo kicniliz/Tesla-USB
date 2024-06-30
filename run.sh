@@ -1,32 +1,49 @@
 #!/bin/bash
 
-diskId=disk2
-deviceNode=/dev/${diskId}s1
+# Configuration
+diskId="disk2"
+deviceNode="/dev/${diskId}s1"
+outputDir="$HOME/Downloads/teslacam"
 
-isUsbDrive() {
-	diskutil list $diskId
-	echo "=== $diskId info"
-    info=$(diskutil info $diskId | egrep 'Protocol|Whole|Media Name|Removable')
-
-    local returnStr=$(printf "$info\n" | grep -m1 Protocol | cut -d ':' -f 2)
-    echo "Protocol: $returnStr"
-    if [[ "$returnStr" != *"USB" ]]; then echo "Not $expectedDeviceName. Exit"; exit; fi
-
-    returnStr=$(printf "$info\n" | grep -m1 Whole | cut -d ':' -f 2)
-    echo "Whole: $returnStr"
-    if [[ "$returnStr" != *"Yes" ]]; then echo "Not whole $expectedDeviceName. Exit"; exit; fi
-
+# Function to check if the device is a USB drive
+check_usb_drive() {
+    echo "=== $diskId info"
+    diskutil list "$diskId"
+    
+    info=$(diskutil info "$diskId" | grep -E 'Protocol|Whole|Media Name|Removable')
+    
+    protocol=$(echo "$info" | grep -m1 Protocol | cut -d ':' -f 2 | xargs)
+    whole=$(echo "$info" | grep -m1 Whole | cut -d ':' -f 2 | xargs)
+    
+    echo "Protocol: $protocol"
+    echo "Whole: $whole"
+    
+    if [[ "$protocol" != *"USB"* ]]; then
+        echo "Not a USB device. Exiting."
+        exit 1
+    fi
+    
+    if [[ "$whole" != "Yes" ]]; then
+        echo "Not a whole USB device. Exiting."
+        exit 1
+    fi
+    
     echo "$info"
 }
 
-isUsbDrive
+# Main script
+check_usb_drive
 
-echo ""
-read -p "Please confirm that $deviceNode is your teslacam usb? (y/n) " answer
-if [ "$answer" != "y" ]; then 
-    echo "In run.sh file, edit the line diskId=disk2 to your usb drive"
-    exit; fi
+echo
+read -p "Please confirm that $deviceNode is your TeslaCam USB drive? (y/n) " answer
 
-diskutil unmount $deviceNode
-mkdir -p ~/Downloads/teslacam/
-sudo ./run.py $deviceNode ~/Downloads/teslacam/ 0 
+if [[ "$answer" != "y" ]]; then 
+    echo "Edit the 'diskId' variable in this script to match your USB drive."
+    exit 1
+fi
+
+diskutil unmount "$deviceNode"
+
+mkdir -p "$outputDir"
+
+sudo ./run.py "$deviceNode" "$outputDir" 0
